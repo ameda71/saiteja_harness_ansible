@@ -1,42 +1,45 @@
-provider "google" {
-  project = "sam-458313"        # ← your GCP project ID
-  region  = "us-west1"          # optional, for regional resources
-  zone    = "us-west1-a"        # for zonal resources like compute instances
-}
+---
+- hosts: all
+  become: yes  # Ensure commands run as root
+  tasks:
+    - name: Install tools
+      yum:
+        name:
+          - yum-utils
+          - wget
+          - git
+          - python3
+          - python3-pip
+          - epel-release
+        state: present
+        update_cache: yes
 
+    - name: Add Docker repository
+      shell: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      args:
+        creates: /etc/yum.repos.d/docker-ce.repo
 
+    - name: Install Docker
+      yum:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
 
-resource "tls_private_key" "my_ssh_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
 
-resource "google_compute_instance" "instance" {
-  name         = "instance-1"
-  machine_type = "e2-standard-2"
-  zone = "us-west1-a"
-
-  boot_disk {
-    initialize_params {
-      image = "centos-stream-9"
-    }
-  }
-
-  network_interface {
-    network = "default"
-    access_config {}
-  }
-
-  metadata = {
-    ssh-keys = "ansible:${tls_private_key.my_ssh_key.public_key_openssh}"
-  }
-}
-
-output "private_key" {
-  value     = tls_private_key.my_ssh_key.private_key_pem
-  sensitive = true
-}
-output "vm_external_ip" {
-   
-  value = google_compute_instance.instance.network_interface[0].access_config[0].nat_ip
-}
+    - name: Install Harness Delegate (Docker-based)
+      shell: |
+        docker run -d --cpus=1 --memory=2g \
+        -e DELEGATE_NAME=docker-delegate-2-ganesh \
+        -e NEXT_GEN="true" \
+        -e DELEGATE_TYPE="DOCKER" \
+        -e ACCOUNT_ID=ucHySz2jQKKWQweZdXyCog \
+        -e DELEGATE_TOKEN=NTRhYTY0Mjg3NThkNjBiNjMzNzhjOGQyNjEwOTQyZjY= \
+        -e DELEGATE_TAGS="" \
+        -e MANAGER_HOST_AND_PORT=https://app.harness.io us-docker.pkg.dev/gar-prod-setup/harness-public/harness/delegate:25.04.85701

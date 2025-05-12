@@ -2,7 +2,7 @@
 - hosts: all
   become: yes  # Ensure commands run as root
   tasks:
-    - name: Install tools
+    - name: Install necessary tools
       yum:
         name:
           - yum-utils
@@ -15,7 +15,8 @@
         update_cache: yes
 
     - name: Add Docker repository
-      shell: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      shell: |
+        yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
       args:
         creates: /etc/yum.repos.d/docker-ce.repo
 
@@ -35,7 +36,7 @@
 
     - name: Install Harness Delegate (Docker-based)
       shell: |
-        docker run  --cpus=1 --memory=2g \
+        docker run --cpus=1 --memory=2g \
         -e DELEGATE_NAME=docker-delegate-saiteja \
         -e NEXT_GEN="true" \
         -e DELEGATE_TYPE="DOCKER" \
@@ -46,3 +47,4 @@
         us-docker.pkg.dev/gar-prod-setup/harness-public/harness/delegate:25.04.85701
       args:
         executable: /bin/bash
+        creates: /var/lib/docker/containers  # Prevents re-running if container already exists
